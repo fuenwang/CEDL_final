@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 from glob import glob
 
-
 class Dataset:
     def __init__(self, path, img_height, img_width, batch_size, n_pairs, do_shuffle=False):
         if path[-1] == '/':
@@ -140,11 +139,11 @@ if __name__ == '__main__':
     a = test._GetFirstBatch()
     print a[1][0, :, :]
     #print a[0][0, 0, 0, :]
-    exit()
+    #exit()
     test._batch_index = 295
-    for i in range(50):
+    for i in range(5000):
         print i
         #if i==0:
         #    test._GetFirstBatch()
-        a = test.GetNextBatch()
+        #a = test.GetNextBatch()
         #print len(a[0]), len(a[1])

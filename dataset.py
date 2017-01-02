@@ -25,6 +25,7 @@ class Dataset:
         #self._CheckLst()
         self._total_data = len(self._depth_lst)
         self._data_index = np.arange(self._total_data)
+        self.Shuffle()
     
     def GetNextBatch(self):
         index = self._batch_index

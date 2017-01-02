@@ -4,7 +4,7 @@ from glob import glob
 
 
 class Dataset:
-    def __init__(self, path, img_height, img_width, batch_size, n_pairs, do_shuffle=True):
+    def __init__(self, path, img_height, img_width, batch_size, n_pairs, do_shuffle=False):
         if path[-1] == '/':
             path = path[:-1]
         self._root_path = path
@@ -41,9 +41,9 @@ class Dataset:
             B = np.random.choice(self._data_index, batch_size-count, replace=False)
             A = np.arange(start, start+count)
             indice = np.concatenate([A, B])
-            return self._pano_lst[indice], self._depth_lst[indice]
+            return self._ReadImageData(self._pano_lst[indice]), self._GetRelationPairs(self._depth_lst[indice])
         else:
-            return self._pano_lst[start:end], self._depth_lst[start:end]
+            return self._ReadImageData(self._pano_lst[start:end]), self._GetRelationPairs(self._depth_lst[start:end])
 
     def GetPanoLst(self):
         lst = glob('%s/*.jpg'%self._pano_path)
@@ -57,7 +57,7 @@ class Dataset:
         np.random.shuffle(self._data_index)
         self._pano_lst = self._pano_lst[self._data_index]
         self._depth_lst = self._depth_lst[self._data_index]
-        #print 'Shuffle !!!!!!!!!!!!!!!!!!'
+        print 'Shuffle !!!!!!!!!!!!!!!!!!'
     
     def _ReadImageData(self, lst):
         batch_size = self._batch_size
@@ -65,34 +65,44 @@ class Dataset:
         width = self._width
         buf = np.zeros([batch_size, height, width, 3], dtype=np.float32)
         for index, path in enumerate(lst):
-            img = np.float32(cv2.imread(path)) / 255
+            img = np.interp(np.float32(cv2.imread(path)), [0, 255], [-1, 1])
             buf[index, :, :, :] = img
         return buf
 
-    def _GetRelationPairs(self, lst):
+    def _GetRelationPairs(self, lst, depth_thresh = 2):
         batch_size = self._batch_size
         height = self._height
         width = self._width
+        indice_buf = np.arange(height * width, dtype=np.int32)
         n_pairs = self._n_pairs
         buf = np.zeros([batch_size, n_pairs, 5], dtype=np.int32)
         for index, path in enumerate(lst):
             depth_map = np.load(path)
-            #tmp = np.zeros([n_pairs, 5], dtype=np.int32)
-            row1_indice = np.random.choice(range(height), n_pairs)
-            col1_indice = np.random.choice(range(width), n_pairs)
-
-            row2_indice = np.random.choice(range(height), n_pairs)
-            col2_indice = np.random.choice(range(width), n_pairs)
+            non_inf_indice = np.logical_not(np.isinf(depth_map.reshape(height * width)))
+            indice_non_inf = indice_buf[non_inf_indice]
             
+            indice1 = np.random.choice(indice_non_inf, n_pairs)
+            row1_indice = np.int32(indice1 / width)
+            col1_indice = indice1 - row1_indice * width 
+            
+            indice2 = np.random.choice(indice_non_inf, n_pairs)
+            row2_indice = np.int32(indice2 / width)
+            col2_indice = indice2 - row2_indice * width
+                        
             depth1 = depth_map[row1_indice, col1_indice]
             depth2 = depth_map[row2_indice, col2_indice]
-            relation = np.zeros([n_pairs, 1], dtype=np.int32)
+            relation = np.zeros([n_pairs], dtype=np.int32)
+            hard_to_tell_indice = np.abs(depth1 - depth2) <= depth_thresh
             relation[depth1 > depth2] = 1
             relation[depth1 < depth2] = -1
-            buf[index, :, :] = np.concatenate([row1_indice.T, col1_indice.T, row2_indice.T, 
-                                               col2_indice.T, relation], axis=1)
-
-            
+            relation[hard_to_tell_indice] = 0
+            #print row2_indice
+            #print col2_indice
+            #print relation
+            #print np.concatenate([[row1_indice], [col1_indice], [row2_indice,col2_indice], [relation]]).T
+            buf[index, :, :] = np.concatenate([[row1_indice], [col1_indice], [row2_indice],
+                                               [col2_indice], [relation]]).T
+        return buf 
 
     def _GetFirstBatch(self):
         index = self._batch_index
@@ -104,7 +114,7 @@ class Dataset:
         #print index
         #print self._pano_lst[0:10]
         #print self._depth_lst[0:10]
-        return self._pano_lst[start:end], self._depth_lst[start:end]
+        return self._ReadImageData(self._pano_lst[start:end]), self._GetRelationPairs(self._depth_lst[start:end])
 
     def _CheckLst(self):
         if not (len(self._depth_lst) == len(self._pano_lst)):
@@ -125,9 +135,15 @@ class Dataset:
             exit()
 
 if __name__ == '__main__':
-    test = Dataset('../data', 2000, 0, 0)
+    test = Dataset('../data', 256, 512 , 100, 3000, 0)
+    a = test._GetFirstBatch()
+    print a[1][0, :, :]
+    #print a[0][0, 0, 0, :]
+    exit()
+    test._batch_index = 295
     for i in range(50):
-        if i==0:
-            test._GetFirstBatch()
+        print i
+        #if i==0:
+        #    test._GetFirstBatch()
         a = test.GetNextBatch()
         #print len(a[0]), len(a[1])

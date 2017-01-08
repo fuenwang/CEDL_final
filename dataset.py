@@ -1,4 +1,5 @@
 import cv2
+import csv
 import numpy as np
 from glob import glob
 
@@ -62,6 +63,32 @@ class Dataset:
         self._depth_lst = self._depth_lst[self._data_index]
         print 'Shuffle !!!!!!!!!!!!!!!!!!'
 
+    def GetCSVData(self, pano_num):
+        indice = np.random.choice(self._data_index, pano_num, replace=False)
+        sample_pano_lst = self._pano_lst[indice]
+        sample_depth_lst = self._depth_lst[indice]
+
+        depth_batch = self._GetRelationPairs(
+            sample_depth_lst, depth_thresh=0.1)
+        return sample_pano_lst, sample_depth_lst, depth_batch
+
+    def DumpCSV(self, pano_lst, depth_lst, batch, f_name):
+        sample_num = batch.shape[1]
+        with open(f_name, 'wb') as f:
+            writer = csv.writer(f)
+            for index, img in enumerate(pano_lst):
+                desc = [img, 'dummy_path', sample_num, 'dummy', 'dummy']
+                writer.writerow(desc)
+                for pair_index in range(self._n_pairs):
+                    pair = batch[index, pair_index, :]
+                    if pair[4] == 1:
+                        line = [pair[0], pair[1], pair[2], pair[3], '>']
+                    elif pair[4] == 0:
+                        line = [pair[0], pair[1], pair[2], pair[3], '=']
+                    else:
+                        line = [pair[0], pair[1], pair[2], pair[3], '<']
+                    writer.writerow(line)
+
     def _ReadImageData(self, lst):
         batch_size = self._batch_size
         height = self._height
@@ -105,8 +132,12 @@ class Dataset:
             # print relation
             # print np.concatenate([[row1_indice], [col1_indice],
             # [row2_indice,col2_indice], [relation]]).T
-            buf[index, :, :] = np.concatenate([[row1_indice], [col1_indice], [row2_indice],
+            try:
+                buf[index, :, :] = np.concatenate([[row1_indice], [col1_indice], [row2_indice],
                                                [col2_indice], [relation]]).T
+            except:
+                print index
+                exit()
         return buf
 
     def _GetFirstBatch(self):
@@ -140,15 +171,11 @@ class Dataset:
             exit()
 
 if __name__ == '__main__':
-    test = Dataset('../data', 256, 512, 100, 3000, 0)
-    a = test._GetFirstBatch()
-    print a[1][0, :, :]
-    # print a[0][0, 0, 0, :]
-    exit()
-    test._batch_index = 295
-    for i in range(5000):
-        print i
-        # if i==0:
-        #    test._GetFirstBatch()
-        #a = test.GetNextBatch()
-        # print len(a[0]), len(a[1])
+    pano_num = 2800
+    indice1 = range(pano_num)[:pano_num/2]
+    indice2 = range(pano_num)[pano_num/2:]
+
+    test = Dataset('../data', 256, 512, 2800, 400, 0)
+    [pano, depth, batch] = test.GetCSVData(pano_num)
+    test.DumpCSV(pano[indice1], depth[indice1], batch[indice1, :, :], 'Train.csv')
+    test.DumpCSV(pano[indice2], depth[indice2], batch[indice2, :, :], 'Test.csv')

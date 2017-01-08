@@ -134,7 +134,7 @@ class Dataset:
             # [row2_indice,col2_indice], [relation]]).T
             try:
                 buf[index, :, :] = np.concatenate([[row1_indice], [col1_indice], [row2_indice],
-                                               [col2_indice], [relation]]).T
+                                                   [col2_indice], [relation]]).T
             except:
                 print index
                 exit()
@@ -172,10 +172,12 @@ class Dataset:
 
 if __name__ == '__main__':
     pano_num = 2800
-    indice1 = range(pano_num)[:pano_num/2]
-    indice2 = range(pano_num)[pano_num/2:]
+    indice1 = range(pano_num)[:pano_num / 2]
+    indice2 = range(pano_num)[pano_num / 2:]
 
-    test = Dataset('../data', 256, 512, 2800, 400, 0)
+    test = Dataset('../data', 256, 512, pano_num, 400, 0)
     [pano, depth, batch] = test.GetCSVData(pano_num)
-    test.DumpCSV(pano[indice1], depth[indice1], batch[indice1, :, :], 'Train.csv')
-    test.DumpCSV(pano[indice2], depth[indice2], batch[indice2, :, :], 'Test.csv')
+    test.DumpCSV(pano[indice1], depth[indice1],
+                 batch[indice1, :, :], 'Train.csv')
+    test.DumpCSV(pano[indice2], depth[indice2],
+                 batch[indice2, :, :], 'Test.csv')

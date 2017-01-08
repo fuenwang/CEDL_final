@@ -1,3 +1,4 @@
+import os
 import cv2
 import csv
 import numpy as np
@@ -51,10 +52,12 @@ class Dataset:
 
     def GetPanoLst(self):
         lst = glob('%s/*.jpg' % self._pano_path)
+        lst = [os.path.abspath(x) for x in lst]
         return np.array(sorted(lst))
 
     def GetDepthLst(self):
         lst = glob('%s/*.npy' % self._depth_path)
+        lst = [os.path.abspath(x) for x in lst]
         return np.array(sorted(lst))
 
     def Shuffle(self):
